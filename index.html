@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browser Data Extractor</title>
+    <!-- Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <style>
+        :root { --primary: #2563eb; --bg: #f8fafc; --border: #e2e8f0; }
+        body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); padding: 2rem; color: #1e293b; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+        h1 { margin-top: 0; color: #0f172a; }
+        
+        .upload-area { border: 2px dashed var(--border); padding: 2rem; text-align: center; border-radius: 8px; margin-bottom: 2rem; transition: border-color 0.2s; }
+        .upload-area:hover { border-color: var(--primary); }
+        input[type="file"] { display: none; }
+        .btn { background: var(--primary); color: white; padding: 0.6rem 1.2rem; border-radius: 6px; cursor: pointer; border: none; font-weight: 500; display: inline-block; }
+        .btn-export { background: #059669; margin-top: 1rem; }
+
+        .filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; padding: 1rem; background: #f1f5f9; border-radius: 8px; }
+        .filter-group { display: flex; flex-direction: column; gap: 0.4rem; }
+        input[type="text"], input[type="number"] { padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px; }
+        .column-toggles { display: flex; flex-wrap: wrap; gap: 0.5rem; padding: 0.5rem; background: white; border: 1px solid var(--border); border-radius: 4px; }
+        .column-toggle-item { display: flex; align-items: center; gap: 0.3rem; }
+        .column-toggle-item input[type="checkbox"] { cursor: pointer; }
+        .column-toggle-item label { cursor: pointer; font-size: 0.85rem; white-space: nowrap; }
+
+        .table-container { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; height: 500px; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        
+        /* Updated Table Header Styles for Sorting */
+        th { 
+            background: #f8fafc; text-align: left; padding: 0.75rem; 
+            border-bottom: 2px solid var(--border); position: sticky; top: 0; 
+            cursor: pointer; user-select: none; transition: background 0.2s;
+            white-space: nowrap;
+        }
+        th:hover { background: #e2e8f0; }
+        .sort-icon { margin-left: 8px; font-size: 0.8em; }
+
+        td { padding: 0.75rem; border-bottom: 1px solid var(--border); }
+        tr:hover { background: #f1f5f9; }
+        
+        .status { margin-top: 1rem; font-size: 0.85rem; color: #64748b; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Data Extractor & Filter</h1>
+    
+    <div class="upload-area" id="dropZone">
+        <p>Drop Excel or PDF here or</p>
+        <label class="btn">
+            Browse Files
+            <input type="file" id="fileInput" accept=".xlsx, .xls, .csv, .pdf">
+        </label>
+        <div class="status" id="statusText">No file uploaded</div>
+    </div>
+
+    <div id="appContent" style="display: none;">
+        <div class="filters">
+            <div class="filter-group">
+                <label>Keyword Search</label>
+                <input type="text" id="globalSearch" placeholder="Search all columns...">
+            </div>
+            <div id="columnFilters" style="display: contents;"></div>
+            <div class="filter-group">
+                <label>Range Filter (Min - Max)</label>
+                <div style="display: flex; gap: 0.5rem;">
+                    <input type="number" id="rangeMin" placeholder="Min">
+                    <input type="number" id="rangeMax" placeholder="Max">
+                </div>
+                <select id="rangeColumn" style="margin-top:0.2rem; padding:0.3rem; border-radius:4px; border:1px solid var(--border);">
+                    <option value="">Select Numeric Column</option>
+                </select>
+            </div>
+            <div class="filter-group" style="grid-column: 1 / -1;">
+                <label>Show/Hide Columns</label>
+                <div class="column-toggles" id="columnToggles"></div>
+            </div>
+        </div>
+
+        <button class="btn btn-export" id="exportBtn">Export Filtered CSV</button>
+        <p id="rowCount" style="font-size: 0.8rem; margin-top: 0.5rem;"></p>
+
+        <div class="table-container">
+            <table id="dataTable">
+                <thead id="tableHead"></thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Configuration
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+
+    let originalData = [];
+    let filteredData =[];
+    let headers =[];
+    
+    // Sorting State
+    let sortCol = null;
+    let sortAsc = true;
+
+    const fileInput = document.getElementById('fileInput');
+    const statusText = document.getElementById('statusText');
+    const tableHead = document.getElementById('tableHead');
+    const tableBody = document.getElementById('tableBody');
+    const appContent = document.getElementById('appContent');
+    const globalSearch = document.getElementById('globalSearch');
+    const columnFiltersContainer = document.getElementById('columnFilters');
+    const rangeColumn = document.getElementById('rangeColumn');
+    const rangeMin = document.getElementById('rangeMin');
+    const rangeMax = document.getElementById('rangeMax');
+
+    // --- File Handling ---
+
+    fileInput.onchange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        processFile(file);
+    };
+
+    async function processFile(file) {
+        statusText.innerText = `Processing ${file.name}...`;
+        const extension = file.name.split('.').pop().toLowerCase();
+
+        try {
+            if (extension === 'pdf') {
+                await processPDF(file);
+            } else {
+                await processExcel(file);
+            }
+            // Reset Sort when new file is loaded
+            sortCol = null;
+            sortAsc = true;
+            setupUI();
+            applyFilters();
+        } catch (err) {
+            console.error(err);
+            statusText.innerText = "Error processing file. Ensure it is a valid format.";
+        }
+    }
+
+    function processExcel(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                const json = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+                
+                if (json.length > 0) {
+                    headers = Object.keys(json[0]);
+                    originalData = json;
+                    resolve();
+                } else {
+                    reject("Sheet is empty");
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        });
+    }
+
+    async function processPDF(file) {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+        let textContent =[];
+
+        for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const content = await page.getTextContent();
+            const lines = {};
+            content.items.forEach(item => {
+                const y = Math.round(item.transform[5]); 
+                if (!lines[y]) lines[y] = [];
+                lines[y].push(item);
+            });
+            
+            const sortedY = Object.keys(lines).sort((a, b) => b - a);
+            sortedY.forEach(y => {
+                const lineItems = lines[y].sort((a, b) => a.transform[4] - b.transform[4]);
+                const rowText = lineItems.map(item => item.str.trim()).filter(s => s !== "");
+                if (rowText.length > 0) textContent.push(rowText);
+            });
+        }
+
+        const maxCols = Math.max(...textContent.map(r => r.length));
+        headers = Array.from({length: maxCols}, (_, i) => `Col ${i + 1}`);
+        originalData = textContent.map(row => {
+            let obj = {};
+            headers.forEach((h, i) => obj[h] = row[i] || "");
+            return obj;
+        });
+    }
+
+    // --- Table UI & Filtering ---
+
+    function setupUI() {
+        appContent.style.display = 'block';
+        statusText.innerText = "File loaded successfully.";
+
+        // Column Search Inputs
+        columnFiltersContainer.innerHTML = '';
+        headers.forEach(h => {
+            const div = document.createElement('div');
+            div.className = 'filter-group';
+            
+            const label = document.createElement('label');
+            label.innerText = `Filter ${h}`;
+            
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'col-filter';
+            input.setAttribute('data-col', h);
+            input.placeholder = 'Search...';
+            input.addEventListener('input', applyFilters);
+            
+            div.appendChild(label);
+            div.appendChild(input);
+            columnFiltersContainer.appendChild(div);
+        });
+
+        // Range Filter Dropdown
+        rangeColumn.innerHTML = '<option value="">Select Numeric Column</option>';
+        headers.forEach(h => {
+            const isNumeric = originalData.some(row => {
+                if (row[h] == null || row[h] === "") return false;
+                const cleanVal = String(row[h]).replace(/[^0-9.-]+/g, "");
+                return cleanVal !== "" && !isNaN(parseFloat(cleanVal));
+            });
+            if (isNumeric) {
+                const opt = document.createElement('option');
+                opt.value = h;
+                opt.innerText = h;
+                rangeColumn.appendChild(opt);
+            }
+        });
+
+        populateColumnToggles();
+    }
+
+    function populateColumnToggles() {
+        const container = document.getElementById('columnToggles');
+        container.innerHTML = '';
+        
+        headers.forEach((h, index) => {
+            const div = document.createElement('div');
+            div.className = 'column-toggle-item';
+            
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.id = `col-toggle-${index}`;
+            checkbox.checked = true;
+            checkbox.setAttribute('data-column', h);
+            checkbox.addEventListener('change', renderTable);
+            
+            const label = document.createElement('label');
+            label.htmlFor = checkbox.id;
+            label.innerText = h;
+            
+            div.appendChild(checkbox);
+            div.appendChild(label);
+            container.appendChild(div);
+        });
+    }
+
+    // New Sorting Handler
+    function handleSort(colName) {
+        if (sortCol === colName) {
+            sortAsc = !sortAsc; // Toggle direction if clicking the same column
+        } else {
+            sortCol = colName;
+            sortAsc = true; // Default to ascending on new column
+        }
+        applyFilters(); 
+    }
+
+    function applyFilters() {
+        const globalVal = globalSearch.value.toLowerCase();
+        const rangeColVal = rangeColumn.value;
+        const minVal = parseFloat(rangeMin.value);
+        const maxVal = parseFloat(rangeMax.value);
+        
+        const colFilters = {};
+        document.querySelectorAll('.col-filter').forEach(input => {
+            if (input.value) colFilters[input.getAttribute('data-col')] = input.value.toLowerCase();
+        });
+
+        // Filter Phase
+        filteredData = originalData.filter(row => {
+            const matchGlobal = !globalVal || Object.values(row).some(v => 
+                (v != null ? String(v) : "").toLowerCase().includes(globalVal)
+            );
+            
+            const matchCols = Object.keys(colFilters).every(key => 
+                (row[key] != null ? String(row[key]) : "").toLowerCase().includes(colFilters[key])
+            );
+            
+            let matchRange = true;
+            if (rangeColVal && (!isNaN(minVal) || !isNaN(maxVal))) {
+                const rawVal = row[rangeColVal] != null ? String(row[rangeColVal]) : "";
+                const cleanVal = rawVal.replace(/[^0-9.-]+/g, ""); 
+                const val = parseFloat(cleanVal);
+                
+                if (isNaN(val)) {
+                    matchRange = false;
+                } else {
+                    if (!isNaN(minVal) && val < minVal) matchRange = false;
+                    if (!isNaN(maxVal) && val > maxVal) matchRange = false;
+                }
+            }
+
+            return matchGlobal && matchCols && matchRange;
+        });
+
+        // Sorting Phase
+        if (sortCol) {
+            filteredData.sort((a, b) => {
+                const getVal = (row) => {
+                    let val = row[sortCol];
+                    if (val == null || val === "") return "";
+                    let str = String(val).trim();
+                    // Identify if the cell is mostly numeric/currency (e.g. "$1,200", "50.5")
+                    if (/^[$€£₹]?\s*-?[\d,]+(\.\d+)?$/.test(str)) {
+                        return parseFloat(str.replace(/[^0-9.-]+/g, ""));
+                    }
+                    return str;
+                };
+
+                let valA = getVal(a);
+                let valB = getVal(b);
+
+                // Both Numbers
+                if (typeof valA === 'number' && typeof valB === 'number') {
+                    return sortAsc ? valA - valB : valB - valA;
+                }
+
+                // Fallback to text matching natively
+                valA = String(valA);
+                valB = String(valB);
+                let cmp = valA.localeCompare(valB, undefined, { numeric: true, sensitivity: 'base' });
+                return sortAsc ? cmp : -cmp;
+            });
+        }
+
+        renderTable();
+    }
+
+    function renderTable() {
+        const visibleCols = {};
+        document.querySelectorAll('#columnToggles input[type="checkbox"]').forEach(cb => {
+            visibleCols[cb.getAttribute('data-column')] = cb.checked;
+        });
+
+        // Generate click-able headers with correct sort arrow
+        tableHead.innerHTML = `<tr>${headers.map(h => {
+            // Determine the sort icon status
+            let sortArrow = "↕"; 
+            let arrowColor = "#cbd5e1"; // faded for unsorted
+            
+            if (sortCol === h) {
+                sortArrow = sortAsc ? "▲" : "▼";
+                arrowColor = "var(--primary)"; // colored for active sort
+            }
+
+            return `
+                <th style="${visibleCols[h] === false ? 'display: none;' : ''}" 
+                    onclick="handleSort(this.getAttribute('data-col'))" 
+                    data-col="${h.replace(/"/g, '&quot;')}">
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                        ${h} <span class="sort-icon" style="color: ${arrowColor};">${sortArrow}</span>
+                    </div>
+                </th>`;
+        }).join('')}</tr>`;
+
+        // Generate body
+        tableBody.innerHTML = filteredData.map(row => 
+            `<tr>${headers.map(h => {
+                const val = row[h] != null ? row[h] : "";
+                return `<td style="${visibleCols[h] === false ? 'display: none;' : ''}">${val}</td>`;
+            }).join('')}</tr>`
+        ).join('');
+        
+        document.getElementById('rowCount').innerText = `Showing ${filteredData.length} of ${originalData.length} rows`;
+    }
+
+    // --- Export Logic ---
+
+    document.getElementById('exportBtn').onclick = () => {
+        if (filteredData.length === 0) return alert("No data to export");
+
+        const visibleCols = {};
+        document.querySelectorAll('#columnToggles input[type="checkbox"]').forEach(cb => {
+            visibleCols[cb.getAttribute('data-column')] = cb.checked;
+        });
+        const visibleHeaders = headers.filter(h => visibleCols[h] !== false);
+
+        const csvContent =[
+            visibleHeaders.join(','),
+            ...filteredData.map(row => 
+                visibleHeaders.map(h => {
+                    const cellVal = row[h] != null ? String(row[h]) : "";
+                    return `"${cellVal.replace(/"/g, '""')}"`;
+                }).join(',')
+            )
+        ].join('\n');
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", "filtered_data.csv");
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    // Global Listeners
+    document.getElementById('globalSearch').addEventListener('input', applyFilters);
+    document.getElementById('rangeMin').addEventListener('input', applyFilters);
+    document.getElementById('rangeMax').addEventListener('input', applyFilters);
+    document.getElementById('rangeColumn').addEventListener('change', applyFilters);
+</script>
+
+</body>
+</html>
