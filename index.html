@@ -4,431 +4,502 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Browser Data Extractor</title>
-    <!-- Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     <style>
-        :root { --primary: #2563eb; --bg: #f8fafc; --border: #e2e8f0; }
+        :root { --primary: #2563eb; --bg: #f8fafc; --border: #e2e8f0; --green: #059669; }
+        * { box-sizing: border-box; }
         body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); padding: 2rem; color: #1e293b; }
-        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+        .container { max-width: 1400px; margin: 0 auto; background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
         h1 { margin-top: 0; color: #0f172a; }
-        
+
         .upload-area { border: 2px dashed var(--border); padding: 2rem; text-align: center; border-radius: 8px; margin-bottom: 2rem; transition: border-color 0.2s; }
-        .upload-area:hover { border-color: var(--primary); }
+        .upload-area:hover, .upload-area.drag-over { border-color: var(--primary); background: #eff6ff; }
         input[type="file"] { display: none; }
-        .btn { background: var(--primary); color: white; padding: 0.6rem 1.2rem; border-radius: 6px; cursor: pointer; border: none; font-weight: 500; display: inline-block; }
-        .btn-export { background: #059669; margin-top: 1rem; }
+        .btn { color: white; padding: 0.55rem 1.1rem; border-radius: 6px; cursor: pointer; border: none; font-weight: 500; display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; }
+        .btn-primary { background: var(--primary); }
+        .btn-green { background: var(--green); }
+        .btn-sm { padding: 0.4rem 0.7rem; font-size: 0.8rem; }
+
+        /* Sheet Tabs */
+        .sheet-tabs { display: flex; gap: 0; margin-bottom: 1.5rem; border-bottom: 2px solid var(--border); overflow-x: auto; }
+        .sheet-tab { padding: 0.6rem 1.2rem; cursor: pointer; border: none; background: none; font-size: 0.9rem; color: #64748b; border-bottom: 2px solid transparent; margin-bottom: -2px; white-space: nowrap; transition: all 0.2s; }
+        .sheet-tab:hover { color: var(--primary); background: #f1f5f9; }
+        .sheet-tab.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
 
         .filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; padding: 1rem; background: #f1f5f9; border-radius: 8px; }
         .filter-group { display: flex; flex-direction: column; gap: 0.4rem; }
-        input[type="text"], input[type="number"] { padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px; }
-        .column-toggles { display: flex; flex-wrap: wrap; gap: 0.5rem; padding: 0.5rem; background: white; border: 1px solid var(--border); border-radius: 4px; }
+        .filter-group label { font-size: 0.8rem; font-weight: 500; color: #475569; }
+        input[type="text"], input[type="number"], select { padding: 0.5rem; border: 1px solid var(--border); border-radius: 4px; font-size: 0.85rem; }
+        .column-toggles { display: flex; flex-wrap: wrap; gap: 0.5rem; padding: 0.5rem; background: white; border: 1px solid var(--border); border-radius: 4px; max-height: 100px; overflow-y: auto; }
         .column-toggle-item { display: flex; align-items: center; gap: 0.3rem; }
-        .column-toggle-item input[type="checkbox"] { cursor: pointer; }
-        .column-toggle-item label { cursor: pointer; font-size: 0.85rem; white-space: nowrap; }
+        .column-toggle-item label { cursor: pointer; font-size: 0.8rem; white-space: nowrap; }
 
-        .table-container { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; height: 500px; }
-        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-        
-        /* Updated Table Header Styles for Sorting */
-        th { 
-            background: #f8fafc; text-align: left; padding: 0.75rem; 
-            border-bottom: 2px solid var(--border); position: sticky; top: 0; 
-            cursor: pointer; user-select: none; transition: background 0.2s;
-            white-space: nowrap;
-        }
+        .table-container { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; max-height: 600px; position: relative; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        th { background: #f8fafc; text-align: left; padding: 0.65rem; border-bottom: 2px solid var(--border); position: sticky; top: 0; z-index: 2; cursor: pointer; user-select: none; white-space: nowrap; }
         th:hover { background: #e2e8f0; }
-        .sort-icon { margin-left: 8px; font-size: 0.8em; }
+        .sort-icon { margin-left: 6px; font-size: 0.75em; }
+        td { padding: 0.55rem 0.65rem; border-bottom: 1px solid var(--border); white-space: nowrap; max-width: 280px; overflow: hidden; text-overflow: ellipsis; }
+        tr:hover { background: #f8fafc; }
 
-        td { padding: 0.75rem; border-bottom: 1px solid var(--border); }
-        tr:hover { background: #f1f5f9; }
-        
-        .status { margin-top: 1rem; font-size: 0.85rem; color: #64748b; }
+        .status { margin-top: 0.5rem; font-size: 0.85rem; color: #64748b; }
+        .progress-bar { width: 100%; height: 5px; background: var(--border); border-radius: 3px; margin-top: 0.5rem; display: none; }
+        .progress-bar-fill { height: 100%; background: var(--primary); border-radius: 3px; transition: width 0.3s; width: 0%; }
+
+        /* Toolbar */
+        .toolbar { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
+        .toolbar .spacer { flex: 1; }
+
+        /* Pagination */
+        .pagination { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+        .pagination button { padding: 0.35rem 0.7rem; border: 1px solid var(--border); background: white; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
+        .pagination button:hover:not(:disabled) { background: #f1f5f9; }
+        .pagination button:disabled { opacity: 0.35; cursor: default; }
+        .pagination select { padding: 0.35rem; font-size: 0.8rem; }
+        .page-info { font-size: 0.8rem; color: #64748b; }
+
+        /* Export dropdown */
+        .export-wrap { position: relative; display: inline-block; }
+        .export-menu { display: none; position: absolute; top: 100%; left: 0; background: white; border: 1px solid var(--border); border-radius: 6px; box-shadow: 0 8px 24px rgb(0 0 0 / 0.12); z-index: 100; min-width: 180px; padding: 0.3rem 0; margin-top: 4px; }
+        .export-menu.open { display: block; }
+        .export-menu button { display: block; width: 100%; text-align: left; padding: 0.5rem 1rem; border: none; background: none; cursor: pointer; font-size: 0.85rem; color: #1e293b; }
+        .export-menu button:hover { background: #f1f5f9; }
+        .export-menu button .fmt-icon { display: inline-block; width: 28px; font-weight: 600; color: var(--primary); }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>Data Extractor & Filter</h1>
-    
+    <h1>Data Extractor &amp; Filter</h1>
+
     <div class="upload-area" id="dropZone">
-        <p>Drop Excel or PDF here or</p>
-        <label class="btn">
+        <p style="margin:0 0 0.5rem;font-size:1.1rem;font-weight:500;">Drop Excel, CSV, or PDF here</p>
+        <label class="btn btn-primary">
             Browse Files
-            <input type="file" id="fileInput" accept=".xlsx, .xls, .csv, .pdf">
+            <input type="file" id="fileInput" accept=".xlsx,.xls,.csv,.pdf">
         </label>
         <div class="status" id="statusText">No file uploaded</div>
+        <div class="progress-bar" id="progressBar"><div class="progress-bar-fill" id="progressFill"></div></div>
     </div>
 
-    <div id="appContent" style="display: none;">
+    <div id="appContent" style="display:none;">
+        <!-- Sheet Tabs -->
+        <div class="sheet-tabs" id="sheetTabs"></div>
+
         <div class="filters">
             <div class="filter-group">
                 <label>Keyword Search</label>
                 <input type="text" id="globalSearch" placeholder="Search all columns...">
             </div>
-            <div id="columnFilters" style="display: contents;"></div>
+            <div id="columnFilters" style="display:contents;"></div>
             <div class="filter-group">
-                <label>Range Filter (Min - Max)</label>
-                <div style="display: flex; gap: 0.5rem;">
+                <label>Range Filter (Min – Max)</label>
+                <div style="display:flex;gap:0.5rem;">
                     <input type="number" id="rangeMin" placeholder="Min">
                     <input type="number" id="rangeMax" placeholder="Max">
                 </div>
-                <select id="rangeColumn" style="margin-top:0.2rem; padding:0.3rem; border-radius:4px; border:1px solid var(--border);">
+                <select id="rangeColumn" style="margin-top:0.3rem;">
                     <option value="">Select Numeric Column</option>
                 </select>
             </div>
-            <div class="filter-group" style="grid-column: 1 / -1;">
-                <label>Show/Hide Columns</label>
+            <div class="filter-group" style="grid-column:1/-1;">
+                <label>Show / Hide Columns</label>
                 <div class="column-toggles" id="columnToggles"></div>
             </div>
         </div>
 
-        <button class="btn btn-export" id="exportBtn">Export Filtered CSV</button>
-        <p id="rowCount" style="font-size: 0.8rem; margin-top: 0.5rem;"></p>
+        <div class="toolbar">
+            <div class="export-wrap">
+                <button class="btn btn-green" id="exportToggleBtn">&#11015; Export &#9662;</button>
+                <div class="export-menu" id="exportMenu">
+                    <button onclick="exportData('csv')"><span class="fmt-icon">CSV</span> Comma-Separated Values</button>
+                    <button onclick="exportData('xlsx')"><span class="fmt-icon">XLSX</span> Excel Workbook</button>
+                    <button onclick="exportData('json')"><span class="fmt-icon">JSON</span> JSON Array</button>
+                    <button onclick="exportData('tsv')"><span class="fmt-icon">TSV</span> Tab-Separated Values</button>
+                    <button onclick="exportData('pdf')"><span class="fmt-icon">PDF</span> PDF Document</button>
+                    <button onclick="exportData('html')"><span class="fmt-icon">HTML</span> HTML Table</button>
+                    <button onclick="exportData('xml')"><span class="fmt-icon">XML</span> XML Data</button>
+                    <button onclick="exportData('sql')"><span class="fmt-icon">SQL</span> SQL INSERT Statements</button>
+                </div>
+            </div>
+            <span id="rowCount" class="page-info"></span>
+            <span class="spacer"></span>
+            <div class="pagination">
+                <button id="firstPageBtn">&#171; First</button>
+                <button id="prevPageBtn">&#8249; Prev</button>
+                <span class="page-info" id="pageInfo">Page 1</span>
+                <button id="nextPageBtn">Next &#8250;</button>
+                <button id="lastPageBtn">Last &#187;</button>
+                <label class="page-info">Rows/page
+                    <select id="pageSizeSelect">
+                        <option value="100">100</option>
+                        <option value="250">250</option>
+                        <option value="500" selected>500</option>
+                        <option value="1000">1,000</option>
+                        <option value="5000">5,000</option>
+                    </select>
+                </label>
+            </div>
+        </div>
 
-        <div class="table-container">
-            <table id="dataTable">
-                <thead id="tableHead"></thead>
-                <tbody id="tableBody"></tbody>
-            </table>
+        <div class="table-container" id="tableContainer">
+            <table><thead id="tableHead"></thead><tbody id="tableBody"></tbody></table>
         </div>
     </div>
 </div>
 
 <script>
-    // Configuration
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
 
-    let originalData = [];
-    let filteredData =[];
-    let headers =[];
-    
-    // Sorting State
-    let sortCol = null;
-    let sortAsc = true;
+/* ── State ── */
+let sheets = {};          // { sheetName: { headers:[], originalData:[], filteredData:[] } }
+let sheetNames = [];
+let activeSheet = '';
+let sortCol = null, sortAsc = true;
+let currentPage = 1, pageSize = 500;
 
-    const fileInput = document.getElementById('fileInput');
-    const statusText = document.getElementById('statusText');
-    const tableHead = document.getElementById('tableHead');
-    const tableBody = document.getElementById('tableBody');
-    const appContent = document.getElementById('appContent');
-    const globalSearch = document.getElementById('globalSearch');
-    const columnFiltersContainer = document.getElementById('columnFilters');
-    const rangeColumn = document.getElementById('rangeColumn');
-    const rangeMin = document.getElementById('rangeMin');
-    const rangeMax = document.getElementById('rangeMax');
+/* ── DOM refs ── */
+const $ = id => document.getElementById(id);
+const fileInput = $('fileInput'), statusText = $('statusText'), tableHead = $('tableHead'),
+      tableBody = $('tableBody'), appContent = $('appContent'), globalSearch = $('globalSearch'),
+      columnFiltersBox = $('columnFilters'), rangeColumn = $('rangeColumn'),
+      rangeMin = $('rangeMin'), rangeMax = $('rangeMax'), sheetTabs = $('sheetTabs'),
+      progressBar = $('progressBar'), progressFill = $('progressFill');
 
-    // --- File Handling ---
+/* ── Helpers ── */
+function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function cur() { return sheets[activeSheet]; }
 
-    fileInput.onchange = (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        processFile(file);
-    };
+/* ── File Handling ── */
+fileInput.onchange = e => { if (e.target.files[0]) processFile(e.target.files[0]); };
+const dropZone = $('dropZone');
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); if (e.dataTransfer.files.length) processFile(e.dataTransfer.files[0]); });
 
-    async function processFile(file) {
-        statusText.innerText = `Processing ${file.name}...`;
-        const extension = file.name.split('.').pop().toLowerCase();
-
-        try {
-            if (extension === 'pdf') {
-                await processPDF(file);
-            } else {
-                await processExcel(file);
-            }
-            // Reset Sort when new file is loaded
-            sortCol = null;
-            sortAsc = true;
-            setupUI();
-            applyFilters();
-        } catch (err) {
-            console.error(err);
-            statusText.innerText = "Error processing file. Ensure it is a valid format.";
-        }
+async function processFile(file) {
+    statusText.innerText = `Processing ${file.name}...`;
+    progressBar.style.display = 'block'; progressFill.style.width = '10%';
+    const ext = file.name.split('.').pop().toLowerCase();
+    try {
+        sheets = {}; sheetNames = [];
+        if (ext === 'pdf') await processPDF(file);
+        else await processExcel(file);
+        progressFill.style.width = '70%';
+        activeSheet = sheetNames[0];
+        sortCol = null; sortAsc = true; currentPage = 1;
+        buildSheetTabs();
+        setupUI();
+        applyFilters();
+        progressFill.style.width = '100%';
+        setTimeout(() => progressBar.style.display = 'none', 400);
+    } catch (err) {
+        console.error(err);
+        statusText.innerText = 'Error processing file.';
+        progressBar.style.display = 'none';
     }
+}
 
-    function processExcel(file) {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, { type: 'array' });
-                const firstSheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[firstSheetName];
-                const json = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
-                
+function processExcel(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = e => {
+            const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+            wb.SheetNames.forEach(name => {
+                const json = XLSX.utils.sheet_to_json(wb.Sheets[name], { defval: '' });
                 if (json.length > 0) {
-                    headers = Object.keys(json[0]);
-                    originalData = json;
-                    resolve();
-                } else {
-                    reject("Sheet is empty");
+                    const h = Object.keys(json[0]);
+                    sheets[name] = { headers: h, originalData: json, filteredData: json.slice() };
+                    sheetNames.push(name);
                 }
-            };
-            reader.readAsArrayBuffer(file);
+            });
+            sheetNames.length ? resolve() : reject('No data found');
+        };
+        reader.readAsArrayBuffer(file);
+    });
+}
+
+async function processPDF(file) {
+    const pdf = await pdfjsLib.getDocument(await file.arrayBuffer()).promise;
+    let rows = [];
+    for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i), content = await page.getTextContent(), lines = {};
+        content.items.forEach(it => { const y = Math.round(it.transform[5]); (lines[y] = lines[y] || []).push(it); });
+        Object.keys(lines).sort((a,b) => b-a).forEach(y => {
+            const r = lines[y].sort((a,b) => a.transform[4]-b.transform[4]).map(it => it.str.trim()).filter(Boolean);
+            if (r.length) rows.push(r);
         });
     }
+    if (!rows.length) throw 'Empty PDF';
+    const mc = Math.max(...rows.map(r => r.length));
+    const h = Array.from({length:mc},(_,i)=>`Col ${i+1}`);
+    const data = rows.map(r => { const o={}; h.forEach((c,i)=>o[c]=r[i]||''); return o; });
+    const name = 'PDF Data';
+    sheets[name] = { headers: h, originalData: data, filteredData: data.slice() };
+    sheetNames.push(name);
+}
 
-    async function processPDF(file) {
-        const arrayBuffer = await file.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
-        let textContent =[];
+/* ── Sheet Tabs ── */
+function buildSheetTabs() {
+    sheetTabs.innerHTML = '';
+    sheetNames.forEach(name => {
+        const btn = document.createElement('button');
+        btn.className = 'sheet-tab' + (name === activeSheet ? ' active' : '');
+        btn.innerText = name;
+        btn.onclick = () => { activeSheet = name; sortCol = null; sortAsc = true; currentPage = 1; buildSheetTabs(); setupUI(); applyFilters(); };
+        sheetTabs.appendChild(btn);
+    });
+}
 
-        for (let i = 1; i <= pdf.numPages; i++) {
-            const page = await pdf.getPage(i);
-            const content = await page.getTextContent();
-            const lines = {};
-            content.items.forEach(item => {
-                const y = Math.round(item.transform[5]); 
-                if (!lines[y]) lines[y] = [];
-                lines[y].push(item);
-            });
-            
-            const sortedY = Object.keys(lines).sort((a, b) => b - a);
-            sortedY.forEach(y => {
-                const lineItems = lines[y].sort((a, b) => a.transform[4] - b.transform[4]);
-                const rowText = lineItems.map(item => item.str.trim()).filter(s => s !== "");
-                if (rowText.length > 0) textContent.push(rowText);
-            });
-        }
+/* ── UI Setup ── */
+function setupUI() {
+    appContent.style.display = 'block';
+    const s = cur();
+    statusText.innerText = `File loaded — sheet "${activeSheet}" has ${s.originalData.length.toLocaleString()} rows, ${s.headers.length} columns.`;
 
-        const maxCols = Math.max(...textContent.map(r => r.length));
-        headers = Array.from({length: maxCols}, (_, i) => `Col ${i + 1}`);
-        originalData = textContent.map(row => {
-            let obj = {};
-            headers.forEach((h, i) => obj[h] = row[i] || "");
-            return obj;
+    // Column filters
+    columnFiltersBox.innerHTML = '';
+    s.headers.forEach(h => {
+        const div = document.createElement('div'); div.className = 'filter-group';
+        const lbl = document.createElement('label'); lbl.innerText = `Filter ${h}`;
+        const inp = document.createElement('input'); inp.type = 'text'; inp.className = 'col-filter'; inp.setAttribute('data-col', h); inp.placeholder = 'Search...';
+        inp.addEventListener('input', debouncedFilter);
+        div.appendChild(lbl); div.appendChild(inp); columnFiltersBox.appendChild(div);
+    });
+
+    // Range filter dropdown
+    rangeColumn.innerHTML = '<option value="">Select Numeric Column</option>';
+    s.headers.forEach(h => {
+        const num = s.originalData.some(row => {
+            if (row[h] == null || row[h] === '') return false;
+            const c = String(row[h]).replace(/[^0-9.-]+/g, '');
+            return c !== '' && !isNaN(parseFloat(c));
+        });
+        if (num) { const o = document.createElement('option'); o.value = h; o.innerText = h; rangeColumn.appendChild(o); }
+    });
+
+    // Column toggles
+    const ct = $('columnToggles'); ct.innerHTML = '';
+    s.headers.forEach((h, i) => {
+        const div = document.createElement('div'); div.className = 'column-toggle-item';
+        const cb = document.createElement('input'); cb.type = 'checkbox'; cb.id = `ct-${i}`; cb.checked = true; cb.setAttribute('data-column', h);
+        cb.addEventListener('change', renderTable);
+        const lbl = document.createElement('label'); lbl.htmlFor = cb.id; lbl.innerText = h;
+        div.appendChild(cb); div.appendChild(lbl); ct.appendChild(div);
+    });
+}
+
+/* ── Sort ── */
+function handleSort(col) {
+    if (sortCol === col) sortAsc = !sortAsc; else { sortCol = col; sortAsc = true; }
+    currentPage = 1; applyFilters();
+}
+
+/* ── Filter ── */
+const debouncedFilter = debounce(() => { currentPage = 1; applyFilters(); }, 200);
+
+function applyFilters() {
+    const s = cur();
+    const gv = globalSearch.value.toLowerCase();
+    const rcv = rangeColumn.value, mn = parseFloat(rangeMin.value), mx = parseFloat(rangeMax.value);
+    const cf = {};
+    document.querySelectorAll('.col-filter').forEach(inp => { if (inp.value) cf[inp.getAttribute('data-col')] = inp.value.toLowerCase(); });
+    const cfk = Object.keys(cf), hasG = gv.length > 0, hasR = rcv && (!isNaN(mn) || !isNaN(mx));
+    const hdrs = s.headers;
+
+    s.filteredData = s.originalData.filter(row => {
+        if (hasG) { let m = false; for (let i = 0; i < hdrs.length; i++) { const v = row[hdrs[i]]; if (v != null && String(v).toLowerCase().includes(gv)) { m = true; break; } } if (!m) return false; }
+        if (cfk.length) { for (let i = 0; i < cfk.length; i++) { const k = cfk[i], cv = row[k]; if (cv == null || !String(cv).toLowerCase().includes(cf[k])) return false; } }
+        if (hasR) { const rv = row[rcv] != null ? String(row[rcv]) : '', cl = rv.replace(/[^0-9.-]+/g, ''), v = parseFloat(cl); if (isNaN(v)) return false; if (!isNaN(mn) && v < mn) return false; if (!isNaN(mx) && v > mx) return false; }
+        return true;
+    });
+
+    if (sortCol) {
+        const numRe = /^[$€£₹]?\s*-?[\d,]+(\.\d+)?$/;
+        s.filteredData.sort((a, b) => {
+            let va = a[sortCol], vb = b[sortCol];
+            if (va == null || va === '') va = ''; if (vb == null || vb === '') vb = '';
+            let sa = String(va).trim(), sb = String(vb).trim();
+            if (numRe.test(sa) && numRe.test(sb)) { const na = parseFloat(sa.replace(/[^0-9.-]+/g,'')), nb = parseFloat(sb.replace(/[^0-9.-]+/g,'')); return sortAsc ? na-nb : nb-na; }
+            const c = sa.localeCompare(sb, undefined, { numeric: true, sensitivity: 'base' }); return sortAsc ? c : -c;
         });
     }
+    renderTable();
+}
 
-    // --- Table UI & Filtering ---
+/* ── Pagination ── */
+function totalPages() { return Math.max(1, Math.ceil(cur().filteredData.length / pageSize)); }
+function pageData() { const fd = cur().filteredData; const st = (currentPage-1)*pageSize; return fd.slice(st, st+pageSize); }
+function updatePag() {
+    const tp = totalPages();
+    $('pageInfo').innerText = `Page ${currentPage} of ${tp}`;
+    $('firstPageBtn').disabled = $('prevPageBtn').disabled = currentPage <= 1;
+    $('nextPageBtn').disabled = $('lastPageBtn').disabled = currentPage >= tp;
+}
+$('firstPageBtn').onclick = () => { currentPage = 1; renderTable(); };
+$('prevPageBtn').onclick = () => { currentPage = Math.max(1, currentPage-1); renderTable(); };
+$('nextPageBtn').onclick = () => { currentPage = Math.min(totalPages(), currentPage+1); renderTable(); };
+$('lastPageBtn').onclick = () => { currentPage = totalPages(); renderTable(); };
+$('pageSizeSelect').onchange = e => { pageSize = parseInt(e.target.value); currentPage = 1; renderTable(); };
 
-    function setupUI() {
-        appContent.style.display = 'block';
-        statusText.innerText = "File loaded successfully.";
+/* ── Render Table ── */
+function renderTable() {
+    const s = cur();
+    const vis = {};
+    document.querySelectorAll('#columnToggles input[type="checkbox"]').forEach(cb => vis[cb.getAttribute('data-column')] = cb.checked);
+    const hdrs = s.headers;
 
-        // Column Search Inputs
-        columnFiltersContainer.innerHTML = '';
-        headers.forEach(h => {
-            const div = document.createElement('div');
-            div.className = 'filter-group';
-            
-            const label = document.createElement('label');
-            label.innerText = `Filter ${h}`;
-            
-            const input = document.createElement('input');
-            input.type = 'text';
-            input.className = 'col-filter';
-            input.setAttribute('data-col', h);
-            input.placeholder = 'Search...';
-            input.addEventListener('input', applyFilters);
-            
-            div.appendChild(label);
-            div.appendChild(input);
-            columnFiltersContainer.appendChild(div);
-        });
+    // Head
+    let hh = '<tr>';
+    for (let i = 0; i < hdrs.length; i++) {
+        const h = hdrs[i], hid = vis[h] === false ? 'display:none;' : '';
+        let arrow = '↕', ac = '#cbd5e1';
+        if (sortCol === h) { arrow = sortAsc ? '▲' : '▼'; ac = 'var(--primary)'; }
+        hh += `<th style="${hid}" onclick="handleSort(this.getAttribute('data-col'))" data-col="${escHtml(h)}"><div style="display:flex;align-items:center;justify-content:space-between;">${escHtml(h)} <span class="sort-icon" style="color:${ac}">${arrow}</span></div></th>`;
+    }
+    hh += '</tr>';
+    tableHead.innerHTML = hh;
 
-        // Range Filter Dropdown
-        rangeColumn.innerHTML = '<option value="">Select Numeric Column</option>';
-        headers.forEach(h => {
-            const isNumeric = originalData.some(row => {
-                if (row[h] == null || row[h] === "") return false;
-                const cleanVal = String(row[h]).replace(/[^0-9.-]+/g, "");
-                return cleanVal !== "" && !isNaN(parseFloat(cleanVal));
-            });
-            if (isNumeric) {
-                const opt = document.createElement('option');
-                opt.value = h;
-                opt.innerText = h;
-                rangeColumn.appendChild(opt);
+    // Body — chunked HTML build
+    const pd = pageData(), cc = hdrs.length;
+    const parts = [];
+    const CHUNK = 500;
+    for (let i = 0; i < pd.length; i += CHUNK) {
+        const end = Math.min(i + CHUNK, pd.length);
+        let c = '';
+        for (let r = i; r < end; r++) {
+            const row = pd[r]; c += '<tr>';
+            for (let j = 0; j < cc; j++) {
+                const h = hdrs[j], hid = vis[h] === false ? 'display:none;' : '';
+                const val = row[h] != null ? row[h] : '';
+                c += `<td style="${hid}" title="${escHtml(val)}">${escHtml(val)}</td>`;
             }
-        });
-
-        populateColumnToggles();
-    }
-
-    function populateColumnToggles() {
-        const container = document.getElementById('columnToggles');
-        container.innerHTML = '';
-        
-        headers.forEach((h, index) => {
-            const div = document.createElement('div');
-            div.className = 'column-toggle-item';
-            
-            const checkbox = document.createElement('input');
-            checkbox.type = 'checkbox';
-            checkbox.id = `col-toggle-${index}`;
-            checkbox.checked = true;
-            checkbox.setAttribute('data-column', h);
-            checkbox.addEventListener('change', renderTable);
-            
-            const label = document.createElement('label');
-            label.htmlFor = checkbox.id;
-            label.innerText = h;
-            
-            div.appendChild(checkbox);
-            div.appendChild(label);
-            container.appendChild(div);
-        });
-    }
-
-    // New Sorting Handler
-    function handleSort(colName) {
-        if (sortCol === colName) {
-            sortAsc = !sortAsc; // Toggle direction if clicking the same column
-        } else {
-            sortCol = colName;
-            sortAsc = true; // Default to ascending on new column
+            c += '</tr>';
         }
-        applyFilters(); 
+        parts.push(c);
     }
+    tableBody.innerHTML = parts.join('');
 
-    function applyFilters() {
-        const globalVal = globalSearch.value.toLowerCase();
-        const rangeColVal = rangeColumn.value;
-        const minVal = parseFloat(rangeMin.value);
-        const maxVal = parseFloat(rangeMax.value);
-        
-        const colFilters = {};
-        document.querySelectorAll('.col-filter').forEach(input => {
-            if (input.value) colFilters[input.getAttribute('data-col')] = input.value.toLowerCase();
-        });
+    $('rowCount').innerText = `Showing ${pd.length.toLocaleString()} of ${s.filteredData.length.toLocaleString()} filtered (${s.originalData.length.toLocaleString()} total)`;
+    updatePag();
+}
 
-        // Filter Phase
-        filteredData = originalData.filter(row => {
-            const matchGlobal = !globalVal || Object.values(row).some(v => 
-                (v != null ? String(v) : "").toLowerCase().includes(globalVal)
-            );
-            
-            const matchCols = Object.keys(colFilters).every(key => 
-                (row[key] != null ? String(row[key]) : "").toLowerCase().includes(colFilters[key])
-            );
-            
-            let matchRange = true;
-            if (rangeColVal && (!isNaN(minVal) || !isNaN(maxVal))) {
-                const rawVal = row[rangeColVal] != null ? String(row[rangeColVal]) : "";
-                const cleanVal = rawVal.replace(/[^0-9.-]+/g, ""); 
-                const val = parseFloat(cleanVal);
-                
-                if (isNaN(val)) {
-                    matchRange = false;
-                } else {
-                    if (!isNaN(minVal) && val < minVal) matchRange = false;
-                    if (!isNaN(maxVal) && val > maxVal) matchRange = false;
-                }
+/* ── Export Dropdown Toggle ── */
+$('exportToggleBtn').onclick = () => $('exportMenu').classList.toggle('open');
+document.addEventListener('click', e => { if (!e.target.closest('.export-wrap')) $('exportMenu').classList.remove('open'); });
+
+/* ── Get visible headers & filtered data for export ── */
+function getExportData() {
+    const s = cur();
+    const vis = {};
+    document.querySelectorAll('#columnToggles input[type="checkbox"]').forEach(cb => vis[cb.getAttribute('data-column')] = cb.checked);
+    const vh = s.headers.filter(h => vis[h] !== false);
+    return { headers: vh, data: s.filteredData };
+}
+
+function downloadBlob(blob, filename) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.style.display = 'none';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+}
+
+/* ── 8 Export Formats ── */
+function exportData(fmt) {
+    $('exportMenu').classList.remove('open');
+    const { headers: vh, data } = getExportData();
+    if (!data.length) return alert('No data to export');
+    const base = `export_${activeSheet.replace(/[^a-zA-Z0-9]/g,'_')}`;
+
+    switch (fmt) {
+        case 'csv': {
+            const lines = [vh.join(',')];
+            for (let i = 0; i < data.length; i++) {
+                lines.push(vh.map(h => `"${String(data[i][h]??'').replace(/"/g,'""')}"`).join(','));
             }
-
-            return matchGlobal && matchCols && matchRange;
-        });
-
-        // Sorting Phase
-        if (sortCol) {
-            filteredData.sort((a, b) => {
-                const getVal = (row) => {
-                    let val = row[sortCol];
-                    if (val == null || val === "") return "";
-                    let str = String(val).trim();
-                    // Identify if the cell is mostly numeric/currency (e.g. "$1,200", "50.5")
-                    if (/^[$€£₹]?\s*-?[\d,]+(\.\d+)?$/.test(str)) {
-                        return parseFloat(str.replace(/[^0-9.-]+/g, ""));
-                    }
-                    return str;
-                };
-
-                let valA = getVal(a);
-                let valB = getVal(b);
-
-                // Both Numbers
-                if (typeof valA === 'number' && typeof valB === 'number') {
-                    return sortAsc ? valA - valB : valB - valA;
-                }
-
-                // Fallback to text matching natively
-                valA = String(valA);
-                valB = String(valB);
-                let cmp = valA.localeCompare(valB, undefined, { numeric: true, sensitivity: 'base' });
-                return sortAsc ? cmp : -cmp;
+            downloadBlob(new Blob([lines.join('\n')], {type:'text/csv;charset=utf-8;'}), base+'.csv');
+            break;
+        }
+        case 'tsv': {
+            const lines = [vh.join('\t')];
+            for (let i = 0; i < data.length; i++) {
+                lines.push(vh.map(h => String(data[i][h]??'').replace(/\t/g,' ')).join('\t'));
+            }
+            downloadBlob(new Blob([lines.join('\n')], {type:'text/tab-separated-values;charset=utf-8;'}), base+'.tsv');
+            break;
+        }
+        case 'json': {
+            const out = data.map(row => { const o={}; vh.forEach(h => o[h] = row[h]??''); return o; });
+            downloadBlob(new Blob([JSON.stringify(out, null, 2)], {type:'application/json'}), base+'.json');
+            break;
+        }
+        case 'xlsx': {
+            const ws = XLSX.utils.json_to_sheet(data.map(row => { const o={}; vh.forEach(h => o[h]=row[h]??''); return o; }), { header: vh });
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, activeSheet.substring(0,31));
+            XLSX.writeFile(wb, base+'.xlsx');
+            break;
+        }
+        case 'pdf': {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+            doc.autoTable({
+                head: [vh],
+                body: data.map(row => vh.map(h => String(row[h]??''))),
+                styles: { fontSize: 7, cellPadding: 3 },
+                headStyles: { fillColor: [37,99,235], fontStyle: 'bold' },
+                alternateRowStyles: { fillColor: [248,250,252] },
+                margin: { top: 40 }
             });
+            doc.save(base+'.pdf');
+            break;
         }
-
-        renderTable();
-    }
-
-    function renderTable() {
-        const visibleCols = {};
-        document.querySelectorAll('#columnToggles input[type="checkbox"]').forEach(cb => {
-            visibleCols[cb.getAttribute('data-column')] = cb.checked;
-        });
-
-        // Generate click-able headers with correct sort arrow
-        tableHead.innerHTML = `<tr>${headers.map(h => {
-            // Determine the sort icon status
-            let sortArrow = "↕"; 
-            let arrowColor = "#cbd5e1"; // faded for unsorted
-            
-            if (sortCol === h) {
-                sortArrow = sortAsc ? "▲" : "▼";
-                arrowColor = "var(--primary)"; // colored for active sort
+        case 'html': {
+            let html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${escHtml(activeSheet)}</title><style>table{border-collapse:collapse;font-family:sans-serif;font-size:13px;width:100%}th{background:#2563eb;color:#fff;padding:8px;text-align:left;border:1px solid #ddd}td{padding:6px 8px;border:1px solid #ddd}tr:nth-child(even){background:#f8fafc}</style></head><body><h2>${escHtml(activeSheet)}</h2><table><thead><tr>`;
+            vh.forEach(h => html += `<th>${escHtml(h)}</th>`);
+            html += '</tr></thead><tbody>';
+            data.forEach(row => { html += '<tr>'; vh.forEach(h => html += `<td>${escHtml(row[h]??'')}</td>`); html += '</tr>'; });
+            html += '</tbody></table></body></html>';
+            downloadBlob(new Blob([html], {type:'text/html'}), base+'.html');
+            break;
+        }
+        case 'xml': {
+            let xml = '<?xml version="1.0" encoding="UTF-8"?>\n<dataset>\n';
+            const safeTag = t => t.replace(/[^a-zA-Z0-9_]/g,'_');
+            data.forEach(row => {
+                xml += '  <row>\n';
+                vh.forEach(h => xml += `    <${safeTag(h)}>${escHtml(row[h]??'')}</${safeTag(h)}>\n`);
+                xml += '  </row>\n';
+            });
+            xml += '</dataset>';
+            downloadBlob(new Blob([xml], {type:'application/xml'}), base+'.xml');
+            break;
+        }
+        case 'sql': {
+            const safeCol = t => '`' + t.replace(/`/g,'``') + '`';
+            const safeVal = v => { const s = String(v??''); return isNaN(v) || s.trim()==='' ? `'${s.replace(/'/g,"''")}'` : s; };
+            const tbl = safeCol(activeSheet.replace(/[^a-zA-Z0-9_]/g,'_'));
+            let sql = `-- INSERT statements for table ${activeSheet}\n`;
+            sql += `CREATE TABLE IF NOT EXISTS ${tbl} (${vh.map(h => `${safeCol(h)} TEXT`).join(', ')});\n\n`;
+            for (let i = 0; i < data.length; i++) {
+                sql += `INSERT INTO ${tbl} (${vh.map(safeCol).join(', ')}) VALUES (${vh.map(h => safeVal(data[i][h])).join(', ')});\n`;
             }
-
-            return `
-                <th style="${visibleCols[h] === false ? 'display: none;' : ''}" 
-                    onclick="handleSort(this.getAttribute('data-col'))" 
-                    data-col="${h.replace(/"/g, '&quot;')}">
-                    <div style="display: flex; align-items: center; justify-content: space-between;">
-                        ${h} <span class="sort-icon" style="color: ${arrowColor};">${sortArrow}</span>
-                    </div>
-                </th>`;
-        }).join('')}</tr>`;
-
-        // Generate body
-        tableBody.innerHTML = filteredData.map(row => 
-            `<tr>${headers.map(h => {
-                const val = row[h] != null ? row[h] : "";
-                return `<td style="${visibleCols[h] === false ? 'display: none;' : ''}">${val}</td>`;
-            }).join('')}</tr>`
-        ).join('');
-        
-        document.getElementById('rowCount').innerText = `Showing ${filteredData.length} of ${originalData.length} rows`;
+            downloadBlob(new Blob([sql], {type:'application/sql'}), base+'.sql');
+            break;
+        }
     }
+}
 
-    // --- Export Logic ---
-
-    document.getElementById('exportBtn').onclick = () => {
-        if (filteredData.length === 0) return alert("No data to export");
-
-        const visibleCols = {};
-        document.querySelectorAll('#columnToggles input[type="checkbox"]').forEach(cb => {
-            visibleCols[cb.getAttribute('data-column')] = cb.checked;
-        });
-        const visibleHeaders = headers.filter(h => visibleCols[h] !== false);
-
-        const csvContent =[
-            visibleHeaders.join(','),
-            ...filteredData.map(row => 
-                visibleHeaders.map(h => {
-                    const cellVal = row[h] != null ? String(row[h]) : "";
-                    return `"${cellVal.replace(/"/g, '""')}"`;
-                }).join(',')
-            )
-        ].join('\n');
-
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement("a");
-        const url = URL.createObjectURL(blob);
-        link.setAttribute("href", url);
-        link.setAttribute("download", "filtered_data.csv");
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    };
-
-    // Global Listeners
-    document.getElementById('globalSearch').addEventListener('input', applyFilters);
-    document.getElementById('rangeMin').addEventListener('input', applyFilters);
-    document.getElementById('rangeMax').addEventListener('input', applyFilters);
-    document.getElementById('rangeColumn').addEventListener('change', applyFilters);
+/* ── Global Listeners ── */
+globalSearch.addEventListener('input', debouncedFilter);
+rangeMin.addEventListener('input', debouncedFilter);
+rangeMax.addEventListener('input', debouncedFilter);
+rangeColumn.addEventListener('change', () => { currentPage = 1; applyFilters(); });
 </script>
 
 </body>
