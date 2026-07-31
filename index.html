@@ -46,6 +46,7 @@
         tr:hover { background: #f8fafc; }
 
         .status { margin-top: 0.5rem; font-size: 0.85rem; color: #64748b; }
+        .processed-time { margin-top: 0.25rem; font-size: 0.8rem; color: #94a3b8; }
         .progress-bar { width: 100%; height: 5px; background: var(--border); border-radius: 3px; margin-top: 0.5rem; display: none; }
         .progress-bar-fill { height: 100%; background: var(--primary); border-radius: 3px; transition: width 0.3s; width: 0%; }
 
@@ -82,6 +83,7 @@
             <input type="file" id="fileInput" accept=".xlsx,.xls,.csv,.pdf">
         </label>
         <div class="status" id="statusText">No file uploaded</div>
+        <div class="processed-time" id="processedTime"></div>
         <div class="progress-bar" id="progressBar"><div class="progress-bar-fill" id="progressFill"></div></div>
     </div>
 
@@ -167,12 +169,16 @@ const fileInput = $('fileInput'), statusText = $('statusText'), tableHead = $('t
       tableBody = $('tableBody'), appContent = $('appContent'), globalSearch = $('globalSearch'),
       columnFiltersBox = $('columnFilters'), rangeColumn = $('rangeColumn'),
       rangeMin = $('rangeMin'), rangeMax = $('rangeMax'), sheetTabs = $('sheetTabs'),
-      progressBar = $('progressBar'), progressFill = $('progressFill');
+      progressBar = $('progressBar'), progressFill = $('progressFill'), processedTime = $('processedTime');
 
 /* ── Helpers ── */
 function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
 function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function cur() { return sheets[activeSheet]; }
+function formatTimestamp(d) {
+    return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: '2-digit' }) +
+           ' ' + d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
 
 /* ── File Handling ── */
 fileInput.onchange = e => { if (e.target.files[0]) processFile(e.target.files[0]); };
@@ -183,6 +189,7 @@ dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.
 
 async function processFile(file) {
     statusText.innerText = `Processing ${file.name}...`;
+    processedTime.innerText = '';
     progressBar.style.display = 'block'; progressFill.style.width = '10%';
     const ext = file.name.split('.').pop().toLowerCase();
     try {
@@ -196,10 +203,12 @@ async function processFile(file) {
         setupUI();
         applyFilters();
         progressFill.style.width = '100%';
+        processedTime.innerText = `Processed on ${formatTimestamp(new Date())}`;
         setTimeout(() => progressBar.style.display = 'none', 400);
     } catch (err) {
         console.error(err);
         statusText.innerText = 'Error processing file.';
+        processedTime.innerText = '';
         progressBar.style.display = 'none';
     }
 }
@@ -210,7 +219,10 @@ function processExcel(file) {
         reader.onload = e => {
             const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
             wb.SheetNames.forEach(name => {
-                const json = XLSX.utils.sheet_to_json(wb.Sheets[name], { defval: '' });
+                // raw:false makes SheetJS format each cell using its Excel number
+                // format (so date/time cells come through as "1 Aug" / "10:00"
+                // instead of raw serial numbers like 46235 / 0.4166666...).
+                const json = XLSX.utils.sheet_to_json(wb.Sheets[name], { defval: '', raw: false });
                 if (json.length > 0) {
                     const h = Object.keys(json[0]);
                     sheets[name] = { headers: h, originalData: json, filteredData: json.slice() };
@@ -267,7 +279,7 @@ function setupUI() {
         const div = document.createElement('div'); div.className = 'filter-group';
         const lbl = document.createElement('label'); lbl.innerText = `Filter ${h}`;
         const inp = document.createElement('input'); inp.type = 'text'; inp.className = 'col-filter'; inp.setAttribute('data-col', h); inp.placeholder = 'Search...';
-        inp.addEventListener('input', debouncedFilter);
+        inp.addEventListener('input', instantFilter);
         div.appendChild(lbl); div.appendChild(inp); columnFiltersBox.appendChild(div);
     });
 
@@ -299,21 +311,28 @@ function handleSort(col) {
     currentPage = 1; applyFilters();
 }
 
-/* ── Filter ── */
-const debouncedFilter = debounce(() => { currentPage = 1; applyFilters(); }, 200);
+/* ── Filter ──
+   Every keystroke re-filters immediately (no debounce delay) so results
+   update as each letter is typed. */
+function instantFilter() { currentPage = 1; applyFilters(); }
+
+function normWs(v) { return String(v).replace(/\s+/g, ' ').trim().toLowerCase(); }
 
 function applyFilters() {
     const s = cur();
-    const gv = globalSearch.value.toLowerCase();
+    const gv = normWs(globalSearch.value);
     const rcv = rangeColumn.value, mn = parseFloat(rangeMin.value), mx = parseFloat(rangeMax.value);
     const cf = {};
-    document.querySelectorAll('.col-filter').forEach(inp => { if (inp.value) cf[inp.getAttribute('data-col')] = inp.value.toLowerCase(); });
+    document.querySelectorAll('.col-filter').forEach(inp => { if (inp.value) cf[inp.getAttribute('data-col')] = normWs(inp.value); });
     const cfk = Object.keys(cf), hasG = gv.length > 0, hasR = rcv && (!isNaN(mn) || !isNaN(mx));
     const hdrs = s.headers;
 
     s.filteredData = s.originalData.filter(row => {
-        if (hasG) { let m = false; for (let i = 0; i < hdrs.length; i++) { const v = row[hdrs[i]]; if (v != null && String(v).toLowerCase().includes(gv)) { m = true; break; } } if (!m) return false; }
-        if (cfk.length) { for (let i = 0; i < cfk.length; i++) { const k = cfk[i], cv = row[k]; if (cv == null || !String(cv).toLowerCase().includes(cf[k])) return false; } }
+        // Whitespace (including embedded line breaks within a cell, e.g.
+        // "Floor\nRoom No:") is collapsed to a single space before matching,
+        // so typed search text lines up with what the cell visually shows.
+        if (hasG) { let m = false; for (let i = 0; i < hdrs.length; i++) { const v = row[hdrs[i]]; if (v != null && normWs(v).includes(gv)) { m = true; break; } } if (!m) return false; }
+        if (cfk.length) { for (let i = 0; i < cfk.length; i++) { const k = cfk[i], cv = row[k]; if (cv == null || !normWs(cv).includes(cf[k])) return false; } }
         if (hasR) { const rv = row[rcv] != null ? String(row[rcv]) : '', cl = rv.replace(/[^0-9.-]+/g, ''), v = parseFloat(cl); if (isNaN(v)) return false; if (!isNaN(mn) && v < mn) return false; if (!isNaN(mx) && v > mx) return false; }
         return true;
     });
@@ -496,9 +515,9 @@ function exportData(fmt) {
 }
 
 /* ── Global Listeners ── */
-globalSearch.addEventListener('input', debouncedFilter);
-rangeMin.addEventListener('input', debouncedFilter);
-rangeMax.addEventListener('input', debouncedFilter);
+globalSearch.addEventListener('input', instantFilter);
+rangeMin.addEventListener('input', instantFilter);
+rangeMax.addEventListener('input', instantFilter);
 rangeColumn.addEventListener('change', () => { currentPage = 1; applyFilters(); });
 </script>
 
