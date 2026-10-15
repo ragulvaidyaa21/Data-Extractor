@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Browser Data Extractor</title>
+<title>Data Extractor</title>
+<link rel="icon" type="image/png" href="data:image/png;base64,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">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -57,7 +58,6 @@ a.cell-link:hover{text-decoration:underline}
 .export-menu button:hover{background:#f1f5f9}
 .fmt-icon{display:inline-block;width:40px;font-weight:600;color:var(--primary)}
 #filterToggle{display:none}
-
 /* ---------- Mobile ---------- */
 @media (max-width:700px){
   body{padding:.5rem}
@@ -115,6 +115,7 @@ a.cell-link:hover{text-decoration:underline}
       </div>
     </div>
 
+
     <div class="toolbar">
       <div class="export-wrap">
         <button class="btn btn-green" id="exportToggleBtn">&#11015; Export &#9662;</button>
@@ -152,7 +153,7 @@ a.cell-link:hover{text-decoration:underline}
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
 
 /* ── State ── */
-let sheets={},sheetNames=[],activeSheet='',sortCol=null,sortAsc=true,currentPage=1,pageSize=500;
+let sheets={},sheetNames=[],activeSheet='',sortLevels=[],currentPage=1,pageSize=500;
 const cellLinks=new WeakMap(); // row object -> { columnName: url }
 
 /* ── DOM / helpers ── */
@@ -164,6 +165,11 @@ const fileInput=$('fileInput'),statusText=$('statusText'),tableHead=$('tableHead
 const escHtml=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const cur=()=>sheets[activeSheet];
 const formatTimestamp=d=>d.toLocaleDateString(undefined,{year:'numeric',month:'short',day:'2-digit'})+' '+d.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+
+/* ── Device / size helpers ── */
+const isMobile=()=>window.matchMedia('(max-width:700px)').matches||/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+const SIZE_LIMIT_MB=()=>isMobile()?5:20;   // warn above this size (phones have far less memory)
+const yieldUI=(ms=30)=>new Promise(r=>setTimeout(r,ms)); // lets the browser repaint the loading message
 
 /* ── Link helpers ── */
 function safeUrl(u){try{const x=new URL(u);return['http:','https:','mailto:','tel:'].includes(x.protocol)?x.href:null}catch{return null}}
@@ -178,20 +184,26 @@ dropZone.addEventListener('dragleave',()=>dropZone.classList.remove('drag-over')
 dropZone.addEventListener('drop',e=>{e.preventDefault();dropZone.classList.remove('drag-over');if(e.dataTransfer.files.length)processFile(e.dataTransfer.files[0])});
 
 async function processFile(file){
-  statusText.innerText=`Processing ${file.name}...`;processedTime.innerText='';
-  progressBar.style.display='block';progressFill.style.width='10%';
   const ext=file.name.split('.').pop().toLowerCase();
+  if(!['xlsx','xls','csv','pdf'].includes(ext)){statusText.innerText='Unsupported file. Please choose an Excel, CSV or PDF file.';fileInput.value='';return}
+  const mb=file.size/1048576,limit=SIZE_LIMIT_MB();
+  if(mb>limit&&!confirm(`${file.name} is ${mb.toFixed(1)} MB. Files over ${limit} MB can freeze or crash ${isMobile()?'a phone':'the browser'}.\n\nContinue anyway?`)){
+    statusText.innerText='File skipped (too large for this device).';processedTime.innerText='';fileInput.value='';return;
+  }
+  statusText.innerText=`⏳ Reading ${file.name} (${mb.toFixed(1)} MB)… large files can take a few seconds, please wait.`;processedTime.innerText='';
+  progressBar.style.display='block';progressFill.style.width='10%';
+  await yieldUI(50);
   try{
     sheets={};sheetNames=[];
     if(ext==='pdf')await processPDF(file);else await processExcel(file);
     progressFill.style.width='70%';
-    activeSheet=sheetNames[0];sortCol=null;sortAsc=true;currentPage=1;
+    activeSheet=sheetNames[0];sortLevels=[];currentPage=1;
     buildSheetTabs();setupUI();applyFilters();
     progressFill.style.width='100%';
     processedTime.innerText=`Processed on ${formatTimestamp(new Date())}`;
     setTimeout(()=>progressBar.style.display='none',400);
   }catch(err){
-    console.error(err);statusText.innerText='Error processing file.';processedTime.innerText='';progressBar.style.display='none';
+    console.error(err);statusText.innerText=(typeof err==='string'?err:'Error processing file. It may be too large for this device, or the format is not supported.');fileInput.value='';processedTime.innerText='';progressBar.style.display='none';
   }
 }
 
@@ -231,20 +243,81 @@ function processExcel(file){
   });
 }
 
-async function processPDF(file){
-  const pdf=await pdfjsLib.getDocument(await file.arrayBuffer()).promise;let rows=[];
-  for(let i=1;i<=pdf.numPages;i++){
-    const page=await pdf.getPage(i),content=await page.getTextContent(),lines={};
-    content.items.forEach(it=>{const y=Math.round(it.transform[5]);(lines[y]=lines[y]||[]).push(it)});
-    Object.keys(lines).sort((a,b)=>b-a).forEach(y=>{
-      const r=lines[y].sort((a,b)=>a.transform[4]-b.transform[4]).map(it=>it.str.trim()).filter(Boolean);
-      if(r.length)rows.push(r);
+/* Turn positioned PDF text items into a proper table: real headers, no title/label rows as data */
+function pdfItemsToTable(pages){
+  // pages: array of arrays of {str,x,y,w,h}
+  const lines=[];
+  pages.forEach(items=>{
+    items=items.filter(it=>it.str.trim()).sort((a,b)=>b.y-a.y||a.x-b.x);
+    let line=null;
+    items.forEach(it=>{
+      if(line&&Math.abs(it.y-line.y)<=Math.max(2,it.h*0.4))line.items.push(it);
+      else{line={y:it.y,items:[it]};lines.push(line)}
     });
+  });
+  // visual "cells" per line (used only to find the header, labels and page numbers)
+  lines.forEach(l=>{
+    l.items.sort((a,b)=>a.x-b.x);
+    l.cells=[];
+    l.items.forEach(it=>{
+      const last=l.cells[l.cells.length-1],gap=last?it.x-last.end:0;
+      if(last&&gap<=Math.max(it.h*0.8,3)){last.text+=(gap>it.h*0.1?' ':'')+it.str.trim();last.end=it.x+it.w}
+      else l.cells.push({text:it.str.trim(),x:it.x,end:it.x+it.w});
+    });
+  });
+  // header row = first line that has the largest number of cells
+  const maxCells=Math.max(...lines.map(l=>l.cells.length));
+  if(maxCells<2)return null;
+  const hIdx=lines.findIndex(l=>l.cells.length===maxCells);
+  const hdrCells=lines[hIdx].cells;
+  const headers=[],seen={};
+  hdrCells.forEach((c,i)=>{
+    let n=c.text.replace(/\s+/g,' ').trim()||`Col ${i+1}`;
+    if(seen[n]){seen[n]++;n+=` (${seen[n]})`}else seen[n]=1;
+    headers.push(n);
+  });
+  // Column boundaries come from a complete data row (data is usually left-aligned while
+  // headers may be centred), falling back to the header row if none is found.
+  const ref=lines.slice(hIdx+1).find(l=>l.cells.length===hdrCells.length&&/^\d+$/.test(l.cells[0].text));
+  const bounds=(ref||lines[hIdx]).cells.map((c,i)=>i===0?-Infinity:(ref?c.x-6:(hdrCells[i-1].end+c.x)/2));
+  const colOf=x=>{let k=0;for(let i=0;i<bounds.length;i++)if(x>=bounds[i])k=i;return k};
+  const hdrKey=hdrCells.map(c=>c.text.toLowerCase()).join('|');
+  const isNoise=t=>/^\d+$/.test(t)||/^page\s*\d+/i.test(t);
+  // a new record starts with a number in the first column (S.No); any other line is a
+  // wrapped continuation (e.g. a long name split over two lines) of the previous record
+  const isNewRow=l=>colOf(l.items[0].x)===0&&/^\d+$/.test(l.items[0].str.trim());
+  const fill=(o,l)=>{
+    const last={};
+    l.items.forEach(it=>{
+      const h=headers[colOf(it.x)],t=it.str.trim(),prev=last[h];
+      o[h]=o[h]?o[h]+((prev&&it.x-prev.end<=it.h*0.1)?'':' ')+t:t;
+      last[h]={end:it.x+it.w};
+    });
+  };
+  const rows=[];let prevRow=null;
+  lines.forEach((l,i)=>{
+    if(i<=hIdx)return;                                                    // titles above the header
+    if(l.cells.map(c=>c.text.toLowerCase()).join('|')===hdrKey)return;    // header repeated on each page
+    if(l.cells.length===1&&/^page\s*\d+/i.test(l.cells[0].text))return;   // "Page 2" markers
+    if(isNewRow(l)){const o={};headers.forEach(h=>o[h]='');fill(o,l);rows.push(o);prevRow=o}
+    else if(prevRow)fill(prevRow,l);
+  });
+  return{headers,data:rows};
+}
+
+async function processPDF(file){
+  const pdf=await pdfjsLib.getDocument(await file.arrayBuffer()).promise;
+  const pages=[];
+  for(let i=1;i<=pdf.numPages;i++){
+    statusText.innerText=`⏳ Reading PDF page ${i} of ${pdf.numPages}…`;progressFill.style.width=(10+55*i/pdf.numPages)+'%';
+    await yieldUI(0);
+    const content=await(await pdf.getPage(i)).getTextContent();
+    pages.push(content.items.map(it=>({str:it.str,x:it.transform[4],y:it.transform[5],w:it.width,h:Math.abs(it.height)||Math.abs(it.transform[3])||10})));
   }
-  if(!rows.length)throw 'Empty PDF';
-  const mc=Math.max(...rows.map(r=>r.length)),h=Array.from({length:mc},(_,i)=>`Col ${i+1}`);
-  const data=rows.map(r=>{const o={};h.forEach((c,i)=>o[c]=r[i]||'');return o});
-  sheets['PDF Data']={headers:h,originalData:data,filteredData:data.slice()};sheetNames.push('PDF Data');
+  const t=pdfItemsToTable(pages);
+  if(!t||!t.data.length)throw 'Could not find a table in this PDF';
+  sheets['PDF Data']={headers:t.headers,originalData:t.data,filteredData:t.data.slice()};
+  sheetNames.push('PDF Data');
 }
 
 /* ── Sheet tabs ── */
@@ -253,7 +326,7 @@ function buildSheetTabs(){
   sheetNames.forEach(name=>{
     const btn=document.createElement('button');
     btn.className='sheet-tab'+(name===activeSheet?' active':'');btn.innerText=name;
-    btn.onclick=()=>{activeSheet=name;sortCol=null;sortAsc=true;currentPage=1;buildSheetTabs();setupUI();applyFilters()};
+    btn.onclick=()=>{activeSheet=name;sortLevels=[];currentPage=1;buildSheetTabs();setupUI();applyFilters()};
     sheetTabs.appendChild(btn);
   });
 }
@@ -293,7 +366,12 @@ function setupUI(){
 $('filterToggle').onclick=()=>$('filtersBox').classList.toggle('collapsed');
 
 /* ── Sort / filter ── */
-function handleSort(col){if(sortCol===col)sortAsc=!sortAsc;else{sortCol=col;sortAsc=true}currentPage=1;applyFilters()}
+function handleSort(col){
+  // click a column name: ascending, click again: descending
+  if(sortLevels.length&&sortLevels[0].col===col)sortLevels[0].asc=!sortLevels[0].asc;
+  else sortLevels=[{col,asc:true}];
+  currentPage=1;applyFilters();
+}
 function instantFilter(){currentPage=1;applyFilters()}
 const normWs=v=>String(v).replace(/\s+/g,' ').trim().toLowerCase();
 
@@ -308,12 +386,22 @@ function applyFilters(){
     if(hasR){const rv=row[rcv]!=null?String(row[rcv]):'',v=parseFloat(rv.replace(/[^0-9.-]+/g,''));if(isNaN(v))return false;if(!isNaN(mn)&&v<mn)return false;if(!isNaN(mx)&&v>mx)return false}
     return true;
   });
-  if(sortCol){
-    const numRe=/^[$€£₹]?\s*-?[\d,]+(\.\d+)?$/;
+  if(sortLevels.length){
+    const numRe=/^[$€£₹]?\s*-?[\d,]+(\.\d+)?$/,timeRe=/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/,dateRe=/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$/;
+    const clock12={}; // 12-hour times without AM/PM (10,11,12,01,02,03): treat hours 1-7 as afternoon
+    const isClock12=col=>{if(col in clock12)return clock12[col];let lo=false,hi=false;
+      s.originalData.forEach(r=>{const m=timeRe.exec(String(r[col]??'').trim());if(m){const hr=+m[1];if(hr>=1&&hr<=7)lo=true;if(hr>=10)hi=true}});
+      return clock12[col]=lo&&hi};
+    const tval=(col,m)=>{let hr=+m[1];if(isClock12(col)&&hr>=1&&hr<=7)hr+=12;return hr*3600+(+m[2])*60+(+(m[3]||0))};
+    const cmp=(col,sa,sb)=>{
+      const ta=timeRe.exec(sa),tb=timeRe.exec(sb);if(ta&&tb)return tval(col,ta)-tval(col,tb);
+      const da=dateRe.exec(sa),db=dateRe.exec(sb);if(da&&db)return(+da[3]*10000+ +da[2]*100+ +da[1])-(+db[3]*10000+ +db[2]*100+ +db[1]); // dd.mm.yyyy
+      if(numRe.test(sa)&&numRe.test(sb))return parseFloat(sa.replace(/[^0-9.-]+/g,''))-parseFloat(sb.replace(/[^0-9.-]+/g,''));
+      return sa.localeCompare(sb,undefined,{numeric:true,sensitivity:'base'});
+    };
     s.filteredData.sort((a,b)=>{
-      let sa=String(a[sortCol]??'').trim(),sb=String(b[sortCol]??'').trim();
-      if(numRe.test(sa)&&numRe.test(sb)){const na=parseFloat(sa.replace(/[^0-9.-]+/g,'')),nb=parseFloat(sb.replace(/[^0-9.-]+/g,''));return sortAsc?na-nb:nb-na}
-      const c=sa.localeCompare(sb,undefined,{numeric:true,sensitivity:'base'});return sortAsc?c:-c;
+      for(const{col,asc}of sortLevels){const c=cmp(col,String(a[col]??'').trim(),String(b[col]??'').trim());if(c)return asc?c:-c}
+      return 0; // ties keep their original order
     });
   }
   renderTable();
@@ -341,7 +429,7 @@ function renderTable(){
   let hh='<tr>';
   for(let i=0;i<hdrs.length;i++){
     const h=hdrs[i],hid=vis[h]===false?'display:none;':'';
-    let arrow='↕',ac='#cbd5e1';if(sortCol===h){arrow=sortAsc?'▲':'▼';ac='var(--primary)'}
+    let arrow='↕',ac='#cbd5e1';const li=sortLevels.findIndex(l=>l.col===h);if(li>=0){arrow=(sortLevels[li].asc?'▲':'▼')+(sortLevels.length>1?(li+1):'');ac='var(--primary)'}
     hh+=`<th style="${hid}" onclick="handleSort(this.getAttribute('data-col'))" data-col="${escHtml(h)}"><div style="display:flex;align-items:center;justify-content:space-between">${escHtml(h)} <span class="sort-icon" style="color:${ac}">${arrow}</span></div></th>`;
   }
   tableHead.innerHTML=hh+'</tr>';
@@ -402,6 +490,7 @@ function exportData(fmt){
       const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,activeSheet.substring(0,31));
       XLSX.writeFile(wb,base+'.xlsx');break}
     case 'pdf':{
+      if(data.length>(isMobile()?2000:10000)&&!confirm(`Exporting ${data.length.toLocaleString()} rows to PDF is slow and may freeze this ${isMobile()?'phone':'browser'}. CSV or Excel export is safer. Continue with PDF?`))break;
       const{jsPDF}=window.jspdf;
       const doc=new jsPDF({orientation:'landscape',unit:'pt',format:'a4'});
       doc.autoTable({
@@ -439,6 +528,7 @@ function exportData(fmt){
 }
 
 /* ── Global listeners ── */
+if(isMobile())['1000','5000'].forEach(v=>{const o=$('pageSizeSelect').querySelector(`option[value="${v}"]`);if(o)o.remove()}); // keep phones light
 globalSearch.addEventListener('input',instantFilter);
 rangeMin.addEventListener('input',instantFilter);
 rangeMax.addEventListener('input',instantFilter);
